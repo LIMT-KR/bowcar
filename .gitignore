@@ -5,6 +5,8 @@
 test_gen.py
 test_live.py
 test_upload.py
+test_motor.py
+test_motor_upload.py
 
 # Generated files
 arduino_bowcar/

@@ -31,23 +31,12 @@ pip install bowcar
 1. led 관련
     - BowCar.red(status) : 빨간 led 제어 (status: 'on' or 'off')
     - BowCar.blue(status) : 파란 led 제어 (status: 'on' or 'off')
-    - BowCar.all_light(status) : 모든 led 제어 (status: 'on' or 'off')
-
-2. 부저 관련
-    - BowCar.buzzer(status, scale, octave, note) : 부저 제어 (status: 'on' or 'off'). 'on'일 경우 scale, octave, note 인자 사용.
-    - BowCar.set_duration(time) : 부저음의 기본 길이를 time(ms)만큼 조정
-
-3. 모터 관련
-    - BowCar.set_speed(type, speed) : type('l','r','a')의 속력 값을 speed로 설정
-    - BowCar.set_direction(type, direction) : type('l','r','a')의 방향을 direction으로 설정(기본 값 정면)
-
-4. 조도 센서 관련
-    - BowCar.get_light() : 조도 센서 값 읽어오기
-    - BowCar.is_light(type,thresehold) : 조도 센서 값이 기준값 thresehold 보다 큰지 작은지 타입에 따른 결과를 1과 0으로 return
-
-5. 버튼 관련
     - BowCar.get_button(type) : 버튼 type('u','d','l','r')의 값을 return
     - BowCar.is_push(type) : 버튼 type('u','d','l','r')이 누른 상태면 1, 아니면 0을 return
+
+2. 모터 관련
+    - BowCar.motor(left, right) : 왼쪽, 오른쪽 모터 속도 및 방향 제어 (범위: -255 ~ 255)
+      - 양수: 전진, 음수: 후진, 0: 정지
 
 6. 사운드 센서 관련
     - BowCar.get_sound() : 사운드 센서 값 읽어오기

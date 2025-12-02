@@ -121,23 +121,22 @@ class UploadBowCar(BowCarBase):
     def set_duration(self, time:int=2000):
         self.loop_code += f"duration = {time};\n"
 
-        
-    def set_speed(self, type, speed): #type: ignore
-        if type in ('l', 'a'):
-            self._add_pin_mode("LM_PWM_PIN", "OUTPUT")
-            self.loop_code += f"{self._get_indent()}analogWrite(LM_PWM_PIN, {speed});\n"
-        if type in ('r', 'a'):
-            self._add_pin_mode("RM_PWM_PIN", "OUTPUT")
-            self.loop_code += f"{self._get_indent()}analogWrite(RM_PWM_PIN, {speed});\n"
+    def motor(self, left: int, right: int):
+        # Left Motor
+        left_dir = '0' if left >= 0 else '1'
+        left_speed = abs(left)
+        self._add_pin_mode("LM_DIR_PIN", "OUTPUT")
+        self._add_pin_mode("LM_PWM_PIN", "OUTPUT")
+        self.loop_code += f"{self._get_indent()}digitalWrite(LM_DIR_PIN, {left_dir});\n"
+        self.loop_code += f"{self._get_indent()}analogWrite(LM_PWM_PIN, {left_speed});\n"
 
-    def set_direction(self, type: str = 'a', dir: str = 'f'):
-        direction_code = '0' if dir == 'f' else '1'
-        if type in ('l', 'a'):
-            self._add_pin_mode("LM_DIR_PIN", "OUTPUT")
-            self.loop_code += f"{self._get_indent()}digitalWrite(LM_DIR_PIN, {direction_code});\n"
-        if type in ('r', 'a'):
-            self._add_pin_mode("RM_DIR_PIN", "OUTPUT")
-            self.loop_code += f"{self._get_indent()}digitalWrite(RM_DIR_PIN, {direction_code});\n"
+        # Right Motor
+        right_dir = '0' if right >= 0 else '1'
+        right_speed = abs(right)
+        self._add_pin_mode("RM_DIR_PIN", "OUTPUT")
+        self._add_pin_mode("RM_PWM_PIN", "OUTPUT")
+        self.loop_code += f"{self._get_indent()}digitalWrite(RM_DIR_PIN, {right_dir});\n"
+        self.loop_code += f"{self._get_indent()}analogWrite(RM_PWM_PIN, {right_speed});\n"
 
     # --- 센서 값/조건을 C++ 코드로 반환하는 메소드 ---
     def get_light(self) -> str:
@@ -163,7 +162,6 @@ long Distance() {
     return dist;
 }
 '''
-
         self.declarations.add(Dist_Code)
         return "Distance()"
 

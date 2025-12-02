@@ -25,24 +25,6 @@ class BowCarBase:
         """버저를 제어합니다. status: 'on' or 'off'"""
         raise NotImplementedError
 
-    # --- 설정 메소드 ---
-    def set_duration(self, time: int = 2000):
-        """버저 소리의 기본 지속 시간을 설정합니다. (밀리초 단위)"""
-        raise NotImplementedError
-
-    def set_speed(self, type: str = 'a', speed: int = 100):
-        """모터의 속도를 설정합니다. (0-255)"""
-        raise NotImplementedError
-
-    def set_direction(self, type: str = 'a', dir: str = 'f'):
-        """모터의 방향을 설정합니다. ('f': 전진, 'b': 후진)"""
-        raise NotImplementedError
-
-    # --- 센서 값 비교 메소드 ---
-    def is_light(self, type: str = 'u', thresehold: int = 500) -> Union[bool, str]:
-        """조도 센서 값이 임계값보다 위(u) 또는 아래(d)인지 확인합니다."""
-        raise NotImplementedError
-
     def is_push(self, type: str = 'u') -> Union[bool,str]:
         """버튼(u, d, l, r)이 눌렸는지 확인합니다."""
         raise NotImplementedError

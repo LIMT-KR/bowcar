@@ -153,14 +153,18 @@ class LiveBowCar(BowCarBase):
         # 펌웨어와의 일관성을 위해 명령을 보낼 수도 있습니다.
         self.send_command(f'sd{time:05d}')
 
-    def set_speed(self, type: str = 'a', speed: int = 100):
-        command = f'sm{type}{speed:03d}'
-        self.send_command(command)
+    def motor(self, left: int, right: int):
+        # Left Motor
+        left_dir = '0' if left >= 0 else '1'
+        left_speed = abs(left)
+        self.send_command(f'swl{left_dir}')
+        self.send_command(f'sml{left_speed:03d}')
 
-    def set_direction(self, type: str = 'a', dir: str = 'f'):
-        direction_code = '0' if dir == 'f' else '1'
-        command = 'sw' + type + direction_code
-        self.send_command(command)
+        # Right Motor
+        right_dir = '0' if right >= 0 else '1'
+        right_speed = abs(right)
+        self.send_command(f'swr{right_dir}')
+        self.send_command(f'smr{right_speed:03d}')
 
     def is_light(self, type: str = 'u', thresehold: int = 500) -> bool:
         command = "rl" + type + f'{thresehold}'
