@@ -30,7 +30,7 @@ pip install bowcar
 | `BowCar.red(status)` | 빨간색 LED를 제어합니다. (`status`: 'on'/'off') |
 | `BowCar.blue(status)` | 파란색 LED를 제어합니다. (`status`: 'on'/'off') |
 | `BowCar.all_light(status)` | 모든 LED를 제어합니다. (`status`: 'on'/'off') |
-| `BowCar.neopixel(index, r, g, b)` | 특정 인덱스(0~3)의 네오픽셀 색상을 설정합니다. (0~255) |
+| `BowCar.neopixel(index, r, g, b)` | 특정 인덱스(0부터 3까지)의 네오픽셀 색상을 설정합니다. (0~255) |
 | `BowCar.neopixel_all(r, g, b)` | 모든 네오픽셀의 색상을 설정합니다. |
 | `BowCar.neopixel_clear()` | 모든 네오픽셀을 끕니다. |
 | `BowCar.neopixel_brightness(val)` | 네오픽셀의 밝기를 조절합니다. (0~255) |
@@ -97,7 +97,7 @@ pip install bowcar
 | `BowCar.red(status)` | Controls Red LED. (`status`: 'on'/'off') |
 | `BowCar.blue(status)` | Controls Blue LED. (`status`: 'on'/'off') |
 | `BowCar.all_light(status)` | Controls all LEDs. (`status`: 'on'/'off') |
-| `BowCar.neopixel(idx, r, g, b)` | Sets color of specific NeoPixel (idx: 0~3). (0~255) |
+| `BowCar.neopixel(idx, r, g, b)` | Sets color of specific NeoPixel (idx: from 0 to 3). (0~255) |
 | `BowCar.neopixel_all(r, g, b)` | Sets color of all NeoPixels. |
 | `BowCar.neopixel_clear()` | Turns off all NeoPixels. |
 | `BowCar.neopixel_brightness(val)` | Sets brightness of NeoPixels. (0~255) |
