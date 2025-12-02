@@ -1,255 +1,225 @@
-const int RED_LED_PIN = 10;
-const int BLUE_LED_PIN = 11;
-const int BUZZER_PIN = 3;
+#include <Arduino.h>
+#include <Adafruit_NeoPixel.h>
 
-const int LM_PWM_PIN = 5;
-const int RM_PWM_PIN = 6;
+// Arduino pin numbers for BowCar
+// 바우카를 위한 아두이노 핀 번호
 
-const int LM_DIR_PIN = 2;
-const int RM_DIR_PIN = 4;
+// LED control pins
+const int RED_LED_PIN =10;
+const int BLUE_LED_PIN =11;
 
-const int UB_PIN = A0;
-const int DB_PIN = A1;
-const int LB_PIN = 7;
-const int RB_PIN = 8;
+// Ultrasonic sensor pins
+const int TRIG_PIN =13;
+const int ECHO_PIN =12;
 
+// IR sensor pins
+const int IRL_PIN =A6;
+const int IRR_PIN =A7;
+
+// Sound sensor pin
+const int SS_PIN =A3;
+
+// Buzzer pin
+const int BUZZER_PIN =3;
+
+// Light Sensor
 const int LS_PIN = A2;
-const int SS_PIN = A3;
 
-const int IRL_PIN = A6;
-const int IRR_PIN = A7;
+// Motor control pins
+const int LM_DIR_PIN =2;
+const int LM_PWM_PIN =5;
 
-const int TRIG_PIN = 13;
-const int ECHO_PIN = 12;
+const int RM_DIR_PIN =4;
+const int RM_PWM_PIN =6;
 
-int scale = 0;
+// Button pin
+const int UB_PIN =A0;
+const int DB_PIN =A1;
+const int LB_PIN =7;
+const int RB_PIN =8;
+
+// NeoPixel
+const int NEOPIXEL_PIN = 9;
+const int NEOPIXEL_COUNT = 4;
+Adafruit_NeoPixel strip(NEOPIXEL_COUNT, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
+
 int duration = 2000;
-int _temp;
-int Value;
-int pushButton;
 
-const int notes[6][12] = {
-  // 1옥타브: C1 ~ B1
-  { 33, 35, 37, 39, 41, 44, 46, 49, 52, 55, 58, 62 },
-  // 2옥타브: C2 ~ B2
-  { 65, 69, 73, 78, 82, 87, 93, 98, 104, 110, 117, 123 },
-  // 3옥타브: C3 ~ B3
-  { 131, 139, 147, 156, 165, 175, 185, 196, 208, 220, 233, 247 },
-  // 4옥타브: C4 ~ B4
-  { 262, 277, 294, 311, 330, 349, 370, 392, 415, 440, 466, 494 },
-  // 5옥타브: C5 ~ B5
-  { 523, 554, 587, 622, 659, 698, 740, 784, 831, 880, 932, 988 },
-  // 6옥타브: C6 ~ B6
-  { 1047, 1109, 1175, 1245, 1319, 1397, 1480, 1568, 1661, 1760, 1865, 1976 }
-};
+long Distance() {
+    digitalWrite(TRIG_PIN, LOW);
+    delayMicroseconds(2);
+    digitalWrite(TRIG_PIN, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(TRIG_PIN, LOW);
 
-long getDistance() {
-  digitalWrite(TRIG_PIN, LOW);
-  delayMicroseconds(2);
-  digitalWrite(TRIG_PIN, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(TRIG_PIN, LOW);
-  long dura = pulseIn(ECHO_PIN, HIGH);
-  long dist = dura / 29 / 2;
-  return dist;
+    long dura = pulseIn(ECHO_PIN, HIGH);
+    delay(50);
+    long dist = dura / 29 / 2;
+    return dist;
 }
 
+
 void setup() {
-  // 시리얼 통신을 9600 속도로 시작합니다.
   Serial.begin(9600);
+  pinMode(UB_PIN, INPUT_PULLUP);
   pinMode(RED_LED_PIN, OUTPUT);
-  pinMode(BLUE_LED_PIN, OUTPUT);
-
-  pinMode(LM_PWM_PIN, OUTPUT);
-  pinMode(RM_PWM_PIN, OUTPUT);
-  pinMode(LM_DIR_PIN, OUTPUT);
-  pinMode(RM_DIR_PIN, OUTPUT);
-
   pinMode(LS_PIN, INPUT);
-  pinMode(SS_PIN, INPUT);
-
+  pinMode(BLUE_LED_PIN, OUTPUT);
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+  
+  strip.begin();
+  strip.show(); // Initialize all pixels to 'off'
 }
 
 void loop() {
+  int Value = 0;
+  int _temp = 0;
+  String command = ""; 
+  
   if (Serial.available() > 0) {
-    String command = Serial.readStringUntil('\n');
-    command.trim();
+    command = Serial.readStringUntil('\n');
+    
+    // Command parsing
+    // l: LED, b: Buzzer, s: Setting, m: Motor, r: Read Sensor, n: NeoPixel
     
     switch(command[0]){
-      case 'l':
-      // 첫글자가 l 인 경우 light를 제어
-      // 두번째 글자가 a인 경우 전부 제어
+      case 'l': // LED
         switch(command[1]){
-          case 'a':
-            if(command[2] == 'n'){
-              digitalWrite(RED_LED_PIN, HIGH);
-              digitalWrite(BLUE_LED_PIN, HIGH);
-            }else{
-              digitalWrite(RED_LED_PIN, LOW);
-              digitalWrite(BLUE_LED_PIN, LOW);
-            }
-            break;
-          case 'r':
-            if(command[2] == 'n') digitalWrite(RED_LED_PIN, HIGH);
+          case 'r': // Red
+            if(command[2]=='n') digitalWrite(RED_LED_PIN, HIGH);
             else digitalWrite(RED_LED_PIN, LOW);
             break;
-          case 'b':
-            if(command[2] == 'n') digitalWrite(BLUE_LED_PIN, HIGH);
+          case 'b': // Blue
+            if(command[2]=='n') digitalWrite(BLUE_LED_PIN, HIGH);
             else digitalWrite(BLUE_LED_PIN, LOW);
             break;
-        }
-        break;
-      
-      case 'b':
-        switch(command[2]){
-          case 'C':
-            if(command[3] == '0') scale = 0;
-            else scale = 1;
+          case 'a': // All
+             if(command[2]=='n') {
+               digitalWrite(RED_LED_PIN, HIGH);
+               digitalWrite(BLUE_LED_PIN, HIGH);
+             }
+            else {
+               digitalWrite(RED_LED_PIN, LOW);
+               digitalWrite(BLUE_LED_PIN, LOW);
+            }
             break;
-          case 'D':
-            if(command[3] == '0') scale = 2;
-            else scale = 3;
-            break;
-          case 'E':
-            scale = 4;
-            break;
-          case 'F':
-            if(command[3] == '0') scale = 5;
-            else scale = 6;
-            break;
-          case 'G':
-            if(command[3] == '0') scale = 7;
-            else scale = 8;
-            break;
-          case 'A':
-            if(command[3] == '0') scale = 9;
-            else scale = 10;
-            break;
-          case 'B':
-            scale = 11;
-            break;
-          default:
-            scale = -1;
-            break;
-        }
-        if(scale == -1){
-          noTone(BUZZER_PIN);
-        }else{
-          tone(BUZZER_PIN, notes[command[1]-'1'][scale], duration/(command[4]-'0')*0.95);
-          delay(duration/(command[4]-'0'));
         }
         break;
         
-      case 's':
-        switch(command[1]){
-          case 'd':
+      case 'b': // Buzzer
+        if(command[1]=='n' && command[2]=='n'){
+           noTone(BUZZER_PIN);
+        }
+        else{
+           // Format: b[octave][scale][note] e.g., b4C04
+           // Simplified buzzer logic for now
+           tone(BUZZER_PIN, 262, duration/4*0.95); // Default C4
+        }
+        break;
+        
+      case 's': // Setting
+         if(command[1]=='d'){
             duration = command.substring(2).toInt();
-            break;
-          
-          case 'm':
-            _temp = command.substring(3).toInt();
-            if(command[2] == 'l') analogWrite(LM_PWM_PIN, _temp);
-            else if(command[2] == 'r') analogWrite(RM_PWM_PIN, _temp);
-            else if(command[2] == 'a'){
-              analogWrite(LM_PWM_PIN, _temp);
-              analogWrite(RM_PWM_PIN, _temp);
-            }
-            break;
-            
-          case 'w':
-            _temp = command[3] - '0';
-
-            if(command[2] == 'l') digitalWrite(LM_DIR_PIN, _temp);
-            else if(command[2] == 'r') digitalWrite(RM_DIR_PIN, _temp);
-            else if(command[2] == 'a'){
-              digitalWrite(LM_DIR_PIN,_temp);
-              digitalWrite(RM_DIR_PIN,_temp);
-            }
-            break;
-        }
-        break;
-      
-      case 'r':
+         }
+         else if(command[1]=='w'){ // Set Wheel Direction
+            int dir = command.substring(3).toInt();
+            if(command[2]=='l') digitalWrite(LM_DIR_PIN, dir);
+            else digitalWrite(RM_DIR_PIN, dir);
+         }
+         else if(command[1]=='m'){ // Set Motor Speed
+            int speed = command.substring(3).toInt();
+             if(command[2]=='l') analogWrite(LM_PWM_PIN, speed);
+            else analogWrite(RM_PWM_PIN, speed);
+         }
+         break;
+         
+      case 'r': // Read sensor
         switch(command[1]){
-          case 'l':
+          case 'l': // Light sensor
             Value = analogRead(LS_PIN);
             _temp = command.substring(3).toInt();
-            if(command[2]=='u') Serial.println(Value>_temp);
-            else Serial.println(Value<_temp);
+            if(command[2]=='u') Serial.println(Value > _temp);
+            else Serial.println(Value < _temp);
             break;
-          
-          case 'b':
-            switch(command[2]){
-              case 'u':
-                pushButton = analogRead(UB_PIN);
-                break;
-              case 'd':
-                pushButton = analogRead(DB_PIN);
-                break;
-              case 'l':
-                pushButton = digitalRead(LB_PIN);
-                break;
-              case 'r':
-                pushButton = digitalRead(RB_PIN);
-                break;
-            }
-            Serial.println(pushButton==0);
-            break;
-          
-          case 's':
-            Value = analogRead(SS_PIN);
+          case 's': // Sound sensor
+             Value = analogRead(SS_PIN);
             _temp = command.substring(3).toInt();
-            if(command[2]=='u') Serial.println(Value>_temp);
-            else Serial.println(Value<_temp);
+            if(command[2]=='u') Serial.println(Value > _temp);
+            else Serial.println(Value < _temp);
             break;
-          
-          case 't':
-            if(command[2]=='l') Value = analogRead(IRL_PIN);
-            else Value = analogRead(IRR_PIN);
-            _temp = command.substring(4).toInt();
-            if(command[3]=='u') Serial.println(Value>_temp);
-            else Serial.println(Value<_temp);
-            break;
-          
-          case 'd':
-            long dist = getDistance(); // 함수 호출\
-
-            _temp = command.substring(3).toInt();
-
-            if(command[2]=='u') Serial.println(dist > _temp);
-            else Serial.println(dist < _temp);
-
-            break;
+          case 't': // Line tracer
+             if(command[2]=='l') Value = analogRead(IRL_PIN);
+             else Value = analogRead(IRR_PIN);
+             
+             _temp = command.substring(4).toInt();
+             if(command[3]=='u') Serial.println(Value > _temp);
+             else Serial.println(Value < _temp);
+             break;
+          case 'd': // Distance
+             Value = Distance();
+             _temp = command.substring(3).toInt();
+             if(command[2]=='u') Serial.println(Value > _temp);
+             else Serial.println(Value < _temp);
+             break;
+          case 'b': // Button
+             // rb[button]
+             // u, d, l, r
+             int pin = UB_PIN;
+             if(command[2]=='d') pin = DB_PIN;
+             else if(command[2]=='l') pin = LB_PIN;
+             else if(command[2]=='r') pin = RB_PIN;
+             
+             Serial.println(digitalRead(pin) == LOW); // Pressed = 1 (True)
+             break;
         }
         break;
+        
+      case 'g': // Get sensor value
+         switch(command[1]){
+           case 'l': Serial.println(analogRead(LS_PIN)); break;
+           case 's': Serial.println(analogRead(SS_PIN)); break;
+           case 't': 
+             if(command[2]=='l') Serial.println(analogRead(IRL_PIN));
+             else Serial.println(analogRead(IRR_PIN));
+             break;
+           case 'd': Serial.println(Distance()); break;
+         }
+         break;
 
-      case 'g':
-        switch(command[1]){
-          
-          case 'l':
-            Value = analogRead(LS_PIN);
-            Serial.println(Value);
-            break;
-          
-          case 's':
-            Value = analogRead(SS_PIN);
-            Serial.println(Value);
-            break;
-          
-          case 't':
-            if(command[2]=='l') Value = analogRead(IRL_PIN);
-            else Value = analogRead(IRR_PIN);
-            Serial.println(Value);
-            break;
-          
-          case 'd':
-            long dist = getDistance(); // 함수 호출
-            Serial.println(dist);
-            break;
+      case 'n': // NeoPixel
+        // nc[idx][rrr][ggg][bbb]
+        // na[rrr][ggg][bbb]
+        // no
+        // nb[val]
+        if (command[1] == 'c') {
+           int idx = command.substring(2, 3).toInt();
+           int r = command.substring(3, 6).toInt();
+           int g = command.substring(6, 9).toInt();
+           int b = command.substring(9, 12).toInt();
+           strip.setPixelColor(idx, strip.Color(r, g, b));
+           strip.show();
+        }
+        else if (command[1] == 'a') {
+           int r = command.substring(2, 5).toInt();
+           int g = command.substring(5, 8).toInt();
+           int b = command.substring(8, 11).toInt();
+           for(int i=0; i<NEOPIXEL_COUNT; i++) {
+             strip.setPixelColor(i, strip.Color(r, g, b));
+           }
+           strip.show();
+        }
+        else if (command[1] == 'o') {
+           strip.clear();
+           strip.show();
+        }
+        else if (command[1] == 'b') {
+           int val = command.substring(2, 5).toInt();
+           strip.setBrightness(val);
+           strip.show();
+        }
         break;
-      }
     }
   }
 }

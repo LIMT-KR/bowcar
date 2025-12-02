@@ -1,7 +1,10 @@
 import serial.tools.list_ports
 import os
 import subprocess
-from typing import Optional, Type
+import tempfile
+import shutil
+from pathlib import Path
+from typing import Optional, Type, Union
 from .base import BowCarBase
 
 # 이 클래스에서 사용할 아두이노 보드, 폴더, 파일 이름 정보
@@ -35,7 +38,10 @@ class UploadBowCar(BowCarBase):
     파이썬 코드를 아두이노 C++ 코드로 생성하고 업로드하는 클래스입니다.
     """
     def __init__(self):
-        self.declarations:set[str] = set() # 전역 선언 (라이브러리, 변수 등)
+        self.includes:set[str] = set()    # #include 문
+        self.definitions:set[str] = set() # #define 문
+        self.globals:set[str] = set()     # 전역 변수/객체 선언
+        self.declarations:set[str] = set() # 기타 전역 선언 (함수 등)
         self.setup_code:str = ""      # setup() 블록에 들어갈 코드
         self.loop_code:str = ""       # loop() 블록에 들어갈 코드
         self._indent_level:int = 1    # 코드 구조를 위한 들여쓰기 수준
@@ -81,78 +87,166 @@ class UploadBowCar(BowCarBase):
 
         self.declarations.add(command)
     
-    def red_on(self):
+    def red(self, status: str):
         self._add_pin_mode("RED_LED_PIN", "OUTPUT")
-        self.loop_code += f"{self._get_indent()}digitalWrite(RED_LED_PIN, HIGH);\n"
+        if status == 'on':
+            self.loop_code += f"{self._get_indent()}digitalWrite(RED_LED_PIN, HIGH);\n"
+        elif status == 'off':
+            self.loop_code += f"{self._get_indent()}digitalWrite(RED_LED_PIN, LOW);\n"
 
-    def red_off(self):
-        self._add_pin_mode("RED_LED_PIN", "OUTPUT")
-        self.loop_code += f"{self._get_indent()}digitalWrite(RED_LED_PIN, LOW);\n"
-
-    def blue_on(self):
+    def blue(self, status: str):
         self._add_pin_mode("BLUE_LED_PIN", "OUTPUT")
-        self.loop_code += f"{self._get_indent()}digitalWrite(BLUE_LED_PIN, HIGH);\n"
-
-    def blue_off(self):
-        self._add_pin_mode("BLUE_LED_PIN", "OUTPUT")
-        self.loop_code += f"{self._get_indent()}digitalWrite(BLUE_LED_PIN, LOW);\n"
+        if status == 'on':
+            self.loop_code += f"{self._get_indent()}digitalWrite(BLUE_LED_PIN, HIGH);\n"
+        elif status == 'off':
+            self.loop_code += f"{self._get_indent()}digitalWrite(BLUE_LED_PIN, LOW);\n"
         
-    def all_light_on(self):
-        self.red_on()
-        self.blue_on()
+    def all_light(self, status: str):
+        self.red(status)
+        self.blue(status)
 
-    def all_light_off(self):
-        self.red_off()
-        self.blue_off()
-
-    def buzzer_on(self, scale: str = "C0", octave: int = 4, note = 0): #type:ignore
-        if not 1 <= octave <= 6:
-            print(f"오류: 옥타브는 1에서 6 사이여야 합니다. (입력값: {octave})")
-            return
-        if scale not in SCALE_MAPPING:
-            print(f"오류: 음계는 C0~B0 식으로 설정해야 합니다. (입력값: {scale})")
-            return
+    # --- 네오픽셀 제어 메소드 ---
+    def neopixel(self, index: int, r: int, g: int, b: int):
+        self.includes.add("#include <Adafruit_NeoPixel.h>")
+        self.definitions.add("#define NEOPIXEL_PIN 9")
+        self.definitions.add("#define NEOPIXEL_COUNT 4")
+        self.globals.add("Adafruit_NeoPixel strip(NEOPIXEL_COUNT, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);")
         
-        self._add_pin_mode("BUZZER_PIN", "OUTPUT")
-        frequency = tones[octave - 1][SCALE_MAPPING[scale]]
-        command = f"tone(BUZZER_PIN, {frequency}"
-        if note > 0:
-            command += f", (float)duration/{note}*0.95"
-        command += ");"
+        # setup 코드는 중복 추가 방지 필요
+        if "  strip.begin();" not in self.setup_code:
+            self.setup_code += "  strip.begin();\n"
+            self.setup_code += "  strip.show();\n"
+        
+        self.loop_code += f"{self._get_indent()}strip.setPixelColor({index}, strip.Color({r}, {g}, {b}));\n"
+        self.loop_code += f"{self._get_indent()}strip.show();\n"
 
-        self.loop_code += f"{self._get_indent()}{command}\n"
+    def neopixel_all(self, r: int, g: int, b: int):
+        self.includes.add("#include <Adafruit_NeoPixel.h>")
+        self.definitions.add("#define NEOPIXEL_PIN 9")
+        self.definitions.add("#define NEOPIXEL_COUNT 4")
+        self.globals.add("Adafruit_NeoPixel strip(NEOPIXEL_COUNT, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);")
 
-    def buzzer_off(self):
-        self.loop_code += f"{self._get_indent()}noTone(BUZZER_PIN);\n"
+        if "  strip.begin();" not in self.setup_code:
+            self.setup_code += "  strip.begin();\n"
+            self.setup_code += "  strip.show();\n"
+
+        self.loop_code += f"{self._get_indent()}for(int i=0; i<NEOPIXEL_COUNT; i++) {{ strip.setPixelColor(i, strip.Color({r}, {g}, {b})); }}\n"
+        self.loop_code += f"{self._get_indent()}strip.show();\n"
+
+    def neopixel_clear(self):
+        self.includes.add("#include <Adafruit_NeoPixel.h>")
+        self.definitions.add("#define NEOPIXEL_PIN 9")
+        self.definitions.add("#define NEOPIXEL_COUNT 4")
+        self.globals.add("Adafruit_NeoPixel strip(NEOPIXEL_COUNT, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);")
+
+        if "  strip.begin();" not in self.setup_code:
+            self.setup_code += "  strip.begin();\n"
+            self.setup_code += "  strip.show();\n"
+
+        self.loop_code += f"{self._get_indent()}strip.clear();\n"
+        self.loop_code += f"{self._get_indent()}strip.show();\n"
+
+    def neopixel_brightness(self, value: int):
+        self.includes.add("#include <Adafruit_NeoPixel.h>")
+        self.definitions.add("#define NEOPIXEL_PIN 9")
+        self.definitions.add("#define NEOPIXEL_COUNT 4")
+        self.globals.add("Adafruit_NeoPixel strip(NEOPIXEL_COUNT, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);")
+
+        if "  strip.begin();" not in self.setup_code:
+            self.setup_code += "  strip.begin();\n"
+            self.setup_code += "  strip.show();\n"
+
+        self.loop_code += f"{self._get_indent()}strip.setBrightness({value});\n"
+        self.loop_code += f"{self._get_indent()}strip.show();\n"
+
+    def buzzer(self, status: str, scale: str = "C0", octave: int = 4, note = 0): #type:ignore
+        if status == 'on':
+            if not 1 <= octave <= 6:
+                print(f"오류: 옥타브는 1에서 6 사이여야 합니다. (입력값: {octave})")
+                return
+            if scale not in SCALE_MAPPING:
+                print(f"오류: 음계는 C0~B0 식으로 설정해야 합니다. (입력값: {scale})")
+                return
+            
+            self._add_pin_mode("BUZZER_PIN", "OUTPUT")
+            frequency = tones[octave - 1][SCALE_MAPPING[scale]]
+            command = f"tone(BUZZER_PIN, {frequency}"
+            if note > 0:
+                command += f", (float)duration/{note}*0.95"
+            command += ");"
+            self.loop_code += f"{self._get_indent()}{command}\n"
+        elif status == 'off':
+             self.loop_code += f"{self._get_indent()}noTone(BUZZER_PIN);\n"
 
     def set_duration(self, time:int=2000):
         self.loop_code += f"duration = {time};\n"
 
-        
-    def set_speed(self, type, speed): #type: ignore
-        if type in ('l', 'a'):
-            self._add_pin_mode("LM_PWM_PIN", "OUTPUT")
-            self.loop_code += f"{self._get_indent()}analogWrite(LM_PWM_PIN, {speed});\n"
-        if type in ('r', 'a'):
-            self._add_pin_mode("RM_PWM_PIN", "OUTPUT")
-            self.loop_code += f"{self._get_indent()}analogWrite(RM_PWM_PIN, {speed});\n"
+    def motor(self, left: int, right: int):
+        # Left Motor
+        left_dir = '0' if left >= 0 else '1'
+        left_speed = abs(left)
+        self._add_pin_mode("LM_DIR_PIN", "OUTPUT")
+        self._add_pin_mode("LM_PWM_PIN", "OUTPUT")
+        self.loop_code += f"{self._get_indent()}digitalWrite(LM_DIR_PIN, {left_dir});\n"
+        self.loop_code += f"{self._get_indent()}analogWrite(LM_PWM_PIN, {left_speed});\n"
 
-    def set_direction(self, type: str = 'a', dir: str = 'f'):
-        direction_code = '0' if dir == 'f' else '1'
-        if type in ('l', 'a'):
-            self._add_pin_mode("LM_DIR_PIN", "OUTPUT")
-            self.loop_code += f"{self._get_indent()}digitalWrite(LM_DIR_PIN, {direction_code});\n"
-        if type in ('r', 'a'):
-            self._add_pin_mode("RM_DIR_PIN", "OUTPUT")
-            self.loop_code += f"{self._get_indent()}digitalWrite(RM_DIR_PIN, {direction_code});\n"
+        # Right Motor
+        right_dir = '0' if right >= 0 else '1'
+        right_speed = abs(right)
+        self._add_pin_mode("RM_DIR_PIN", "OUTPUT")
+        self._add_pin_mode("RM_PWM_PIN", "OUTPUT")
+        self.loop_code += f"{self._get_indent()}digitalWrite(RM_DIR_PIN, {right_dir});\n"
+        self.loop_code += f"{self._get_indent()}analogWrite(RM_PWM_PIN, {right_speed});\n"
 
-    # --- 센서 값/조건을 C++ 코드로 반환하는 메소드 ---
+    # --- 센서 제어 메소드 (New API) ---
+    def is_button_pressed(self, button: str = 'u') -> str:
+        pin_map = {'u': "UB_PIN", 'd': "DB_PIN", 'l': "LB_PIN", 'r': "RB_PIN"}
+        pin_name = pin_map.get(button, 'UB_PIN')
+        self._add_pin_mode(pin_name, "INPUT_PULLUP") # 버튼은 보통 풀업
+        return f"(digitalRead({pin_name}) == LOW)"
+
+    def check_light(self, threshold: int = 500, condition: str = '>') -> str:
+        self._add_pin_mode("LS_PIN", "INPUT")
+        return f"(analogRead(LS_PIN) {condition} {threshold})"
+
+    def check_sound(self, threshold: int = 500, condition: str = '>') -> str:
+        self._add_pin_mode("SS_PIN", "INPUT")
+        return f"(analogRead(SS_PIN) {condition} {threshold})"
+
+    def check_line(self, dir: str = 'l', threshold: int = 500, condition: str = '>') -> str:
+        pin_name = 'IRL_PIN' if dir == 'l' else 'IRR_PIN'
+        self._add_pin_mode(pin_name, "INPUT")
+        return f"(analogRead({pin_name}) {condition} {threshold})"
+
+    def check_distance(self, threshold: int = 10, condition: str = '<') -> str:
+        self._ensure_distance_func()
+        return f"(Distance() {condition} {threshold})"
+
+    # --- 센서 값 직접 가져오기 메소드 ---
     def get_light(self) -> str:
         self._add_pin_mode("LS_PIN", "INPUT")
         return "analogRead(LS_PIN)"
 
+    def get_button(self, button: str = 'u') -> str:
+        # C++에서는 boolean 표현식이 곧 0/1 정수값으로 쓰일 수 있음.
+        # 명시적으로 형변환하거나 삼항연산자를 쓸 수도 있지만, 여기선 boolean 식 반환.
+        return self.is_button_pressed(button)
+
+    def get_sound(self) -> str:
+        self._add_pin_mode("SS_PIN", "INPUT")
+        return "analogRead(SS_PIN)"
+
+    def get_line(self, dir: str = 'l') -> str:
+        pin_name = 'IRL_PIN' if dir == 'l' else 'IRR_PIN'
+        self._add_pin_mode(pin_name, "INPUT")
+        return f"analogRead({pin_name})"
+
     def get_distance(self) -> str:
-        # 실제 초음파 거리 계산 함수를 아두이노 코드에 추가해야 함
+        self._ensure_distance_func()
+        return "Distance()"
+
+    def _ensure_distance_func(self):
+        """초음파 거리 계산 함수가 선언되었는지 확인하고 없으면 추가합니다."""
         self._add_pin_mode("TRIG_PIN","OUTPUT")
         self._add_pin_mode("ECHO_PIN","INPUT")
         
@@ -170,19 +264,7 @@ long Distance() {
     return dist;
 }
 '''
-
         self.declarations.add(Dist_Code)
-        return "Distance()"
-
-    def is_push(self, type: str = 'u') -> str:
-        pin_map = {'u': "UB_PIN", 'd': "DB_PIN", 'l': "LB_PIN", 'r': "RB_PIN"}
-        return f"(digitalRead({pin_map.get(type, 'UB_PIN')}) == LOW)" # 풀업 저항 기준
-    
-    def get_line(self,dir:str='l'):
-        _pin_name = 'IRL_PIN' if dir == 'l' else 'IRR_PIN'
-        self._add_pin_mode(_pin_name,'INPUT')
-        return f"analogRead({_pin_name})"
-
 
     # --- 제어문 빌더 ---
     def bfor(self, condition: str):
@@ -235,11 +317,37 @@ long Distance() {
         else:    
             self.loop_code += f"{name} = {val};\n"
 
+    def set_array(self, type: str, name: str, values: list):
+        """
+        배열을 선언하고 초기화합니다.
+        예: set_array("int", "myArr", [1, 2, 3]) -> "int myArr[] = {1, 2, 3};"
+        """
+        # 리스트 값을 C++ 배열 초기화 문자열로 변환
+        cpp_values = []
+        for v in values:
+            if isinstance(v, str):
+                cpp_values.append(f'"{v}"') # 문자열은 따옴표 추가
+            else:
+                cpp_values.append(str(v))
+        
+        init_str = ", ".join(cpp_values)
+        command = f"{type} {name}[] = {{{init_str}}};"
+        self.declarations.add(command)
+
+    def set_array_value(self, name: str, index: Union[int, str], value):
+        """
+        배열의 특정 인덱스 값을 변경합니다.
+        예: set_array_value("myArr", 0, 10) -> "myArr[0] = 10;"
+        """
+        val_str = f"'{value}'" if isinstance(value, str) and len(value) == 1 else str(value)
+        self.loop_code += f"{self._get_indent()}{name}[{index}] = {val_str};\n"
+
     # --- 코드 생성 및 업로드 ---
     def get_full_code(self):
         """모든 코드 버퍼를 합쳐 완전한 .ino 코드를 생성합니다."""
         # 여기에 필요한 전역 변수, 핀 번호 등을 추가
-        initial_definitions = "// Auto-generated by BowCar\n#include <Arduino.h>\n\n"
+        initial_definitions = "// Auto-generated by BowCar\n#include <Arduino.h>\n"
+        
         pin_definitions = '''
 // Arduino pin numbers for BowCar
 // 바우카를 위한 아두이노 핀 번호
@@ -283,7 +391,10 @@ int duration = 2000;
         
         full_code = (
             initial_definitions +
+            "\n".join(self.includes) + "\n\n" +
             pin_definitions +
+            "\n".join(self.definitions) + "\n" +
+            "\n".join(self.globals) + "\n" +
             "\n".join(self.declarations) + "\n\n"
             "void setup() {\n"
             "  Serial.begin(9600);\n"
@@ -295,6 +406,57 @@ int duration = 2000;
         )
         return full_code
 
+    def upload_code(self):
+        """생성된 C++ 코드를 아두이노에 업로드합니다."""
+        # 1. 라이브러리 설치 (Adafruit NeoPixel)
+        print("필요한 라이브러리를 확인 및 설치합니다...")
+        subprocess.run(['arduino-cli', 'lib', 'install', 'Adafruit NeoPixel'], check=False, capture_output=True)
+
+        # 2. 코드 생성
+        code = self.get_full_code()
+        
+        # 3. 임시 디렉토리 생성 및 파일 저장
+        with tempfile.TemporaryDirectory() as temp_dir:
+            sketch_name = "arduino_bowcar"
+            sketch_dir = Path(temp_dir) / sketch_name
+            sketch_dir.mkdir()
+            
+            ino_file = sketch_dir / f"{sketch_name}.ino"
+            with open(ino_file, "w", encoding="utf-8") as f:
+                f.write(code)
+                
+            # 4. arduino-cli를 사용하여 컴파일 및 업로드
+            print(f"'{ino_file}' 파일 생성 완료!")
+            print("코드 컴파일 및 업로드 시작...")
+            
+            # 아두이노 포트 찾기 (LiveBowCar의 로직 재사용 또는 간단히 구현)
+            port = self._find_arduino_port()
+            if not port:
+                print("아두이노를 찾을 수 없습니다.")
+                return
+
+            command = [
+                'arduino-cli', 'compile', '--upload',
+                '--port', port,
+                '--fqbn', 'arduino:avr:uno',
+                str(sketch_dir)
+            ]
+            
+            try:
+                subprocess.run(command, check=True, capture_output=True, text=True, encoding='utf-8')
+                print("코드 업로드 성공! Code upload successful!")
+                
+                # (선택 사항) 생성된 코드를 현재 디렉토리에도 저장하여 사용자가 볼 수 있게 함
+                local_sketch_dir = Path(sketch_name)
+                if not local_sketch_dir.exists():
+                    local_sketch_dir.mkdir()
+                shutil.copy(ino_file, local_sketch_dir / f"{sketch_name}.ino")
+                
+            except subprocess.CalledProcessError as e:
+                print(f"코드 업로드 실패:\n{e.stderr}")
+            except Exception as e:
+                print(f"업로드 중 오류 발생: {e}")
+
     def _find_arduino_port(self):
         """아두이노 포트를 찾아 반환하고, 없으면 None을 반환합니다."""
         ports = serial.tools.list_ports.comports()
@@ -304,56 +466,3 @@ int duration = 2000;
                 return port.device
         print('아두이노를 찾을 수 없습니다!')
         return None
-
-    def upload_code(self):
-        """생성된 코드를 .ino 파일로 만들고 아두이노에 업로드합니다."""
-        myPort = self._find_arduino_port()
-        if not myPort:
-            print("업로드를 중지합니다.")
-            return
-
-        full_code = self.get_full_code()
-
-        try:
-            os.makedirs(FOLDER_NAME, exist_ok=True)
-            full_path = os.path.join(FOLDER_NAME, FILE_NAME)
-            with open(full_path, 'w', encoding='utf-8') as f:
-                f.write(full_code)
-            print(f"'{full_path}' 파일 생성 완료!")
-            
-            
-            # arduino-cli를 사용한 컴파일 및 업로드
-            compile_command: list[str] = [
-                'arduino-cli', 'compile',
-                '--fqbn', 'arduino:avr:uno',  # 보드 유형을 지정합니다. (예: Arduino Uno)
-                full_path, '--clean'
-            ]
-            upload_command: list[str] = [
-                'arduino-cli', 'upload', 
-                '--port', str(myPort),
-                '--fqbn', 'arduino:avr:uno',  # 보드 유형을 지정합니다. (예: Arduino Uno)
-                full_path
-            ]
-            print("코드 컴파일 및 업로드 시작...")
-            # ... (subprocess 호출 로직) ...
-            try:
-                result = subprocess.run(  # arduino-cli 명령어 실행
-                    compile_command,
-                    check=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                )
-                print(result.stdout.decode('utf-8'))  # 업로드 성공 메시지 출력
-                result = subprocess.run(
-                    upload_command,
-                    check=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                )
-                print("코드 업로드 성공! Code upload successful!")
-                print(result.stdout.decode('utf-8'))  # 업로드 성공 메시지 출력
-            except subprocess.CalledProcessError as e:
-                print(f"업로드 실패: {e}")
-            
-        except Exception as e:
-            print(f"코드 생성 또는 업로드 중 오류 발생: {e}")

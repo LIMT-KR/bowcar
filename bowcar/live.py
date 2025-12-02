@@ -6,6 +6,7 @@ import tempfile
 import shutil
 import importlib.resources
 from pathlib import Path
+from typing import Union
 from .base import BowCarBase
 
 # 이 클래스에서 사용할 펌웨어 버전 정보
@@ -44,6 +45,10 @@ class LiveBowCar(BowCarBase):
             self.close() # 기존 연결이 있다면 안전하게 닫습니다.
             time.sleep(1) # 포트가 완전히 닫힐 때까지 대기합니다.
 
+            # 1. 라이브러리 설치 (Adafruit NeoPixel)
+            print("필요한 라이브러리를 확인 및 설치합니다...")
+            subprocess.run(['arduino-cli', 'lib', 'install', 'Adafruit NeoPixel'], check=False, capture_output=True)
+
             # 패키지 내 리소스 경로를 찾습니다.
             traversable_path = importlib.resources.files("bowcar.firmware").joinpath(sketch_name, ino_filename)
             with importlib.resources.as_file(traversable_path) as concrete_path:
@@ -74,7 +79,7 @@ class LiveBowCar(BowCarBase):
     def _connect_serial(self):
         """시리얼 포트에 연결합니다."""
         try:
-            self.connection = serial.Serial(self.port, 9600, timeout=1)
+            self.connection = serial.Serial(self.port, 9600, timeout=3)
             print(f"시리얼 포트 연결 성공! (port: {self.port})")
             time.sleep(2) # 아두이노 부팅 및 안정화 대기
         except serial.SerialException as e:
@@ -89,6 +94,9 @@ class LiveBowCar(BowCarBase):
             
     def _get_sensor_value(self, command: str) -> int:
         """아두이노로부터 정수형 센서 값을 읽어옵니다."""
+        if self.connection:
+            self.connection.reset_input_buffer()
+
         self.send_command(command)
         if self.connection:
             try:
@@ -101,6 +109,9 @@ class LiveBowCar(BowCarBase):
 
     def _get_sensor_value_float(self, command: str) -> float:
         """아두이노로부터 실수형 센서 값을 읽어옵니다."""
+        if self.connection:
+            self.connection.reset_input_buffer()
+
         self.send_command(command)
         if self.connection:
             try:
@@ -117,73 +128,119 @@ class LiveBowCar(BowCarBase):
             self.connection.close()
             print('시리얼 연결을 닫았습니다.')
     
+    def _get_condition_type(self, condition: str) -> str:
+        """비교 연산자를 펌웨어 프로토콜('u' 또는 'd')로 변환합니다."""
+        if condition in ('>', '>='):
+            return 'u'
+        elif condition in ('<', '<='):
+            return 'd'
+        else:
+            # 기본값 또는 지원하지 않는 연산자는 'u'로 처리 (필요시 수정)
+            return 'u'
+
     # --- BowCarBase 메소드 구현 ---
 
-    def red_on(self):
-        self.send_command('lrn')
+    def red(self, status: str):
+        if status == 'on':
+            self.send_command('lrn')
+        elif status == 'off':
+            self.send_command('lrf')
 
-    def red_off(self):
-        self.send_command('lrf')
-
-    def blue_on(self):
-        self.send_command('lbn')
-
-    def blue_off(self):
-        self.send_command('lbf')
+    def blue(self, status: str):
+        if status == 'on':
+            self.send_command('lbn')
+        elif status == 'off':
+            self.send_command('lbf')
         
-    def all_light_on(self):
-        self.send_command('lan')
+    def all_light(self, status: str):
+        if status == 'on':
+            self.send_command('lan')
+        elif status == 'off':
+            self.send_command('laf')
 
-    def all_light_off(self):
-        self.send_command('laf')
-        
-    def buzzer_on(self, scale: str = "C0", octave: int = 4, note: int = 4):
-        command = f'b{octave}{scale}{note}'
+    # --- 네오픽셀 제어 메소드 ---
+    def neopixel(self, index: int, r: int, g: int, b: int):
+        # nc[idx][rrr][ggg][bbb]
+        command = f'nc{index}{r:03d}{g:03d}{b:03d}'
         self.send_command(command)
-        # 'live' 모드에서는 파이썬이 직접 기다려야 음 길이를 보장할 수 있습니다.
-        if self.duration > 0 and note > 0:
-            time.sleep(self.duration / note / 1000.0)
 
-    def buzzer_off(self):
-        self.send_command('bnn')
+    def neopixel_all(self, r: int, g: int, b: int):
+        # na[rrr][ggg][bbb]
+        command = f'na{r:03d}{g:03d}{b:03d}'
+        self.send_command(command)
+
+    def neopixel_clear(self):
+        # no
+        self.send_command('no')
+
+    def neopixel_brightness(self, value: int):
+        # nb[val]
+        command = f'nb{value:03d}'
+        self.send_command(command)
+        
+    def buzzer(self, status: str, scale: str = "C0", octave: int = 4, note: int = 4):
+        if status == 'on':
+            command = f'b{octave}{scale}{note}'
+            self.send_command(command)
+            # 'live' 모드에서는 파이썬이 직접 기다려야 음 길이를 보장할 수 있습니다.
+            if self.duration > 0 and note > 0:
+                time.sleep(self.duration / note / 1000.0)
+        elif status == 'off':
+            self.send_command('bnn')
         
     def set_duration(self, time: int = 2000):
         self.duration = time
-        # 실시간 모드에서는 파이썬 변수만 업데이트해도 충분하지만,
-        # 펌웨어와의 일관성을 위해 명령을 보낼 수도 있습니다.
         self.send_command(f'sd{time:05d}')
 
-    def set_speed(self, type: str = 'a', speed: int = 100):
-        command = f'sm{type}{speed:03d}'
-        self.send_command(command)
+    def motor(self, left: int, right: int):
+        # Left Motor
+        left_dir = '0' if left >= 0 else '1'
+        left_speed = abs(left)
+        self.send_command(f'swl{left_dir}')
+        self.send_command(f'sml{left_speed:03d}')
 
-    def set_direction(self, type: str = 'a', dir: str = 'f'):
-        direction_code = '0' if dir == 'f' else '1'
-        command = 'sw' + type + direction_code
-        self.send_command(command)
+        # Right Motor
+        right_dir = '0' if right >= 0 else '1'
+        right_speed = abs(right)
+        self.send_command(f'swr{right_dir}')
+        self.send_command(f'smr{right_speed:03d}')
 
-    def is_light(self, type: str = 'u', thresehold: int = 500) -> bool:
-        command = "rl" + type + f'{thresehold}'
+    # --- 센서 제어 메소드 (New API) ---
+    def is_button_pressed(self, button: str = 'u') -> bool:
+        command = "rb" + button
         return self._get_sensor_value(command) == 1
 
-    def is_push(self, type: str = 'u') -> bool:
-        command = "rb" + type
+    def check_light(self, threshold: int = 500, condition: str = '>') -> bool:
+        type_char = self._get_condition_type(condition)
+        command = "rl" + type_char + f'{threshold}'
         return self._get_sensor_value(command) == 1
 
-    def is_sound(self, type: str = 'u', thresehold: int = 500) -> bool:
-        command = "rs" + type + f'{thresehold}'
+    def check_sound(self, threshold: int = 500, condition: str = '>') -> bool:
+        type_char = self._get_condition_type(condition)
+        command = "rs" + type_char + f'{threshold}'
         return self._get_sensor_value(command) == 1
 
-    def is_line(self, dir: str = 'l', type: str = 'u', thresehold: int = 500) -> bool:
-        command = "rt" + dir + type + f'{thresehold}'
+    def check_line(self, dir: str = 'l', threshold: int = 500, condition: str = '>') -> bool:
+        type_char = self._get_condition_type(condition)
+        command = "rt" + dir + type_char + f'{threshold}'
         return self._get_sensor_value(command) == 1
 
-    def distance(self, type: str = 'u', thresehold: int = 10) -> bool:
-        command = "rd" + type + f'{thresehold}'
+    def check_distance(self, threshold: int = 10, condition: str = '<') -> bool:
+        type_char = self._get_condition_type(condition)
+        command = "rd" + type_char + f'{threshold}'
         return self._get_sensor_value(command) == 1
 
+    # --- 센서 값 직접 가져오기 메소드 ---
     def get_light(self) -> int:
         return self._get_sensor_value("gl")
+
+    def get_button(self, button: str = 'u') -> int:
+        # get_button은 현재 펌웨어 프로토콜 상 직접적인 명령어가 없을 수 있음.
+        # 기존 코드에서도 get_button은 없었고 is_push만 있었음.
+        # 하지만 base.py에 정의되어 있으므로 구현 필요.
+        # 임시로 is_button_pressed와 동일하게 구현하거나, 펌웨어 지원 여부 확인 필요.
+        # 여기서는 is_button_pressed와 동일하게 1/0 반환으로 구현.
+        return 1 if self.is_button_pressed(button) else 0
 
     def get_sound(self) -> int:
         return self._get_sensor_value("gs")
