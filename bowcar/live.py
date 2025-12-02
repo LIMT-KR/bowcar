@@ -45,6 +45,10 @@ class LiveBowCar(BowCarBase):
             self.close() # 기존 연결이 있다면 안전하게 닫습니다.
             time.sleep(1) # 포트가 완전히 닫힐 때까지 대기합니다.
 
+            # 1. 라이브러리 설치 (Adafruit NeoPixel)
+            print("필요한 라이브러리를 확인 및 설치합니다...")
+            subprocess.run(['arduino-cli', 'lib', 'install', 'Adafruit NeoPixel'], check=False, capture_output=True)
+
             # 패키지 내 리소스 경로를 찾습니다.
             traversable_path = importlib.resources.files("bowcar.firmware").joinpath(sketch_name, ino_filename)
             with importlib.resources.as_file(traversable_path) as concrete_path:
@@ -153,6 +157,26 @@ class LiveBowCar(BowCarBase):
             self.send_command('lan')
         elif status == 'off':
             self.send_command('laf')
+
+    # --- 네오픽셀 제어 메소드 ---
+    def neopixel(self, index: int, r: int, g: int, b: int):
+        # nc[idx][rrr][ggg][bbb]
+        command = f'nc{index}{r:03d}{g:03d}{b:03d}'
+        self.send_command(command)
+
+    def neopixel_all(self, r: int, g: int, b: int):
+        # na[rrr][ggg][bbb]
+        command = f'na{r:03d}{g:03d}{b:03d}'
+        self.send_command(command)
+
+    def neopixel_clear(self):
+        # no
+        self.send_command('no')
+
+    def neopixel_brightness(self, value: int):
+        # nb[val]
+        command = f'nb{value:03d}'
+        self.send_command(command)
         
     def buzzer(self, status: str, scale: str = "C0", octave: int = 4, note: int = 4):
         if status == 'on':

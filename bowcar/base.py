@@ -24,6 +24,27 @@ class BowCarBase(ABC):
         """모든 LED를 제어합니다. status: 'on' or 'off'"""
         pass
 
+    # --- 네오픽셀 제어 메소드 ---
+    @abstractmethod
+    def neopixel(self, index: int, r: int, g: int, b: int):
+        """특정 인덱스(0~3)의 네오픽셀 색상을 설정합니다."""
+        pass
+
+    @abstractmethod
+    def neopixel_all(self, r: int, g: int, b: int):
+        """모든 네오픽셀의 색상을 설정합니다."""
+        pass
+
+    @abstractmethod
+    def neopixel_clear(self):
+        """모든 네오픽셀을 끕니다."""
+        pass
+
+    @abstractmethod
+    def neopixel_brightness(self, value: int):
+        """네오픽셀의 밝기(0~255)를 설정합니다."""
+        pass
+
     # --- 부저 제어 메소드 ---
     @abstractmethod
     def buzzer(self, status: str, scale: str = "C0", octave: int = 4, note: int = 4):
