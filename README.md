@@ -68,6 +68,103 @@ pip install bowcar
 | `bif("조건")`, `belif`, `belse` | if-else 조건문을 생성합니다. |
 | `bbreak()` | 반복문을 탈출합니다. |
 | `set_value(type, name, val)` | 변수를 선언하거나 값을 설정합니다. |
+| `set_array(type, name, values)` | 배열을 선언하고 초기화합니다. (values: list) |
+| `set_array_value(name, index, value)` | 배열의 특정 인덱스 값을 변경합니다. |
+
+### 사용 예시
+
+### 사용 예시
+
+#### 1. 기본 제어 (LED, 모터, 시간)
+```python
+from bowcar import UploadBowCar
+
+car = UploadBowCar()
+
+# LED 켜기/끄기
+car.red('on')
+car.delay(1000)
+car.red('off')
+
+# 모터 제어 (전진, 후진, 정지)
+car.motor(100, 100)   # 전진
+car.delay(1000)
+car.motor(-100, -100) # 후진
+car.delay(1000)
+car.motor(0, 0)       # 정지
+
+car.upload_code()
+```
+
+#### 2. 센서 활용 및 조건문
+```python
+from bowcar import UploadBowCar
+
+car = UploadBowCar()
+
+# 무한 반복 (loop)
+with car.bwhile("True"):
+    # 버튼이 눌렸는지 확인
+    with car.bif("is_button_pressed('u')"):
+        car.all_light('on')
+    
+    # 조도 센서 값이 500보다 작으면 (어두우면)
+    with car.belif("check_light(500, '<')"):
+        car.red('on')
+        
+    with car.belse():
+        car.all_light('off')
+
+car.upload_code()
+```
+
+#### 3. 네오픽셀 제어
+```python
+from bowcar import UploadBowCar
+
+car = UploadBowCar()
+
+# 전체 빨간색 설정
+car.neopixel_all(255, 0, 0)
+car.delay(1000)
+
+# 개별 제어 (0번: 초록, 1번: 파랑)
+car.neopixel(0, 0, 255, 0)
+car.neopixel(1, 0, 0, 255)
+car.delay(1000)
+
+# 밝기 조절
+car.neopixel_brightness(50) # 밝기 50으로 설정
+
+# 끄기
+car.neopixel_clear()
+
+car.upload_code()
+```
+
+#### 4. 배열 사용하기 (Array Usage)
+```python
+from bowcar import UploadBowCar
+
+car = UploadBowCar()
+
+# 1. 배열 선언 및 초기화
+# int myArr[] = {10, 20, 30};
+car.set_array("int", "myArr", [10, 20, 30])
+
+# 2. 배열 값 사용
+# for(int i=0; i<3; i++) { ... }
+with car.bfor("int i=0; i<3; i++"):
+    # 네오픽셀 밝기를 배열 값으로 설정
+    car.neopixel_brightness("myArr[i]")
+    car.delay(1000)
+
+# 3. 배열 값 변경
+# myArr[0] = 100;
+car.set_array_value("myArr", 0, 100)
+
+car.upload_code()
+```
 
 ---
 
@@ -135,3 +232,100 @@ All check functions take `threshold` and `condition` ('>', '<') as arguments.
 | `bif("cond")`, `belif`, `belse` | Generates if-else statements. |
 | `bbreak()` | Generates break statement. |
 | `set_value(type, name, val)` | Declares variable or sets value. |
+| `set_array(type, name, values)` | Declares and initializes an array. (values: list) |
+| `set_array_value(name, index, value)` | Modifies a specific index value of an array. |
+
+### Usage Examples
+
+### Usage Examples
+
+#### 1. Basic Control (LED, Motor, Time)
+```python
+from bowcar import UploadBowCar
+
+car = UploadBowCar()
+
+# LED Control
+car.red('on')
+car.delay(1000)
+car.red('off')
+
+# Motor Control (Forward, Backward, Stop)
+car.motor(100, 100)   # Forward
+car.delay(1000)
+car.motor(-100, -100) # Backward
+car.delay(1000)
+car.motor(0, 0)       # Stop
+
+car.upload_code()
+```
+
+#### 2. Sensors & Conditions
+```python
+from bowcar import UploadBowCar
+
+car = UploadBowCar()
+
+# Infinite Loop
+with car.bwhile("True"):
+    # Check if button is pressed
+    with car.bif("is_button_pressed('u')"):
+        car.all_light('on')
+    
+    # Check light sensor (if darker than threshold 500)
+    with car.belif("check_light(500, '<')"):
+        car.red('on')
+        
+    with car.belse():
+        car.all_light('off')
+
+car.upload_code()
+```
+
+#### 3. NeoPixel Control
+```python
+from bowcar import UploadBowCar
+
+car = UploadBowCar()
+
+# Set all to Red
+car.neopixel_all(255, 0, 0)
+car.delay(1000)
+
+# Individual Control (0: Green, 1: Blue)
+car.neopixel(0, 0, 255, 0)
+car.neopixel(1, 0, 0, 255)
+car.delay(1000)
+
+# Set Brightness
+car.neopixel_brightness(50)
+
+# Clear
+car.neopixel_clear()
+
+car.upload_code()
+```
+
+#### 4. Using Arrays
+```python
+from bowcar import UploadBowCar
+
+car = UploadBowCar()
+
+# 1. Declare and initialize array
+# int myArr[] = {10, 20, 30};
+car.set_array("int", "myArr", [10, 20, 30])
+
+# 2. Use array values
+# for(int i=0; i<3; i++) { ... }
+with car.bfor("int i=0; i<3; i++"):
+    # Set NeoPixel brightness using array value
+    car.neopixel_brightness("myArr[i]")
+    car.delay(1000)
+
+# 3. Modify array value
+# myArr[0] = 100;
+car.set_array_value("myArr", 0, 100)
+
+car.upload_code()
+```

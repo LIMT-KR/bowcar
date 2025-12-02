@@ -317,6 +317,31 @@ long Distance() {
         else:    
             self.loop_code += f"{name} = {val};\n"
 
+    def set_array(self, type: str, name: str, values: list):
+        """
+        배열을 선언하고 초기화합니다.
+        예: set_array("int", "myArr", [1, 2, 3]) -> "int myArr[] = {1, 2, 3};"
+        """
+        # 리스트 값을 C++ 배열 초기화 문자열로 변환
+        cpp_values = []
+        for v in values:
+            if isinstance(v, str):
+                cpp_values.append(f'"{v}"') # 문자열은 따옴표 추가
+            else:
+                cpp_values.append(str(v))
+        
+        init_str = ", ".join(cpp_values)
+        command = f"{type} {name}[] = {{{init_str}}};"
+        self.declarations.add(command)
+
+    def set_array_value(self, name: str, index: Union[int, str], value):
+        """
+        배열의 특정 인덱스 값을 변경합니다.
+        예: set_array_value("myArr", 0, 10) -> "myArr[0] = 10;"
+        """
+        val_str = f"'{value}'" if isinstance(value, str) and len(value) == 1 else str(value)
+        self.loop_code += f"{self._get_indent()}{name}[{index}] = {val_str};\n"
+
     # --- 코드 생성 및 업로드 ---
     def get_full_code(self):
         """모든 코드 버퍼를 합쳐 완전한 .ino 코드를 생성합니다."""
