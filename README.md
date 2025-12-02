@@ -31,24 +31,27 @@ pip install bowcar
 1. led 관련
     - BowCar.red(status) : 빨간 led 제어 (status: 'on' or 'off')
     - BowCar.blue(status) : 파란 led 제어 (status: 'on' or 'off')
-    - BowCar.get_button(type) : 버튼 type('u','d','l','r')의 값을 return
-    - BowCar.is_push(type) : 버튼 type('u','d','l','r')이 누른 상태면 1, 아니면 0을 return
+3. 버튼 및 센서 관련
+    - BowCar.get_button(button) : 버튼 button('u','d','l','r')의 값을 return
+    - BowCar.is_button_pressed(button) : 버튼 button('u','d','l','r')이 눌렸는지 확인 (True/False)
+    - BowCar.get_light() : 조도 센서 값 읽어오기
+    - BowCar.check_light(threshold, condition) : 조도 센서 값이 조건(condition: '>', '<')과 임계값(threshold)을 만족하는지 확인
 
 2. 모터 관련
     - BowCar.motor(left, right) : 왼쪽, 오른쪽 모터 속도 및 방향 제어 (범위: -255 ~ 255)
       - 양수: 전진, 음수: 후진, 0: 정지
 
-6. 사운드 센서 관련
+4. 사운드 센서 관련
     - BowCar.get_sound() : 사운드 센서 값 읽어오기
-    - BowCar.is_sound(type,thresehold) : 사운드 센서 값이 기준값 thresehold 보다 큰지 작은지 타입에 따른 결과를 1과 0으로 알려줌
+    - BowCar.check_sound(threshold, condition) : 사운드 센서 값이 조건(condition: '>', '<')과 임계값(threshold)을 만족하는지 확인
 
-7. 라인 트레이서 관련
+5. 라인 트레이서 관련
     - BowCar.get_line(dir) : dir('l','r') 방향의 라인트레이서 값 읽어오기
-    - BowCar.is_line(dir,type,thresehold) : dir('l','r') 방향의 라인트레이서 값이 기준값 thresehold 보다 큰지 작은지 타입에 따른 결과를 1과 0으로 알려줌
+    - BowCar.check_line(dir, threshold, condition) : 라인트레이서 값이 조건(condition: '>', '<')과 임계값(threshold)을 만족하는지 확인
 
-8. 초음파 센서 관련
+6. 초음파 센서 관련
     - BowCar.get_distance() : 초음파 센서로 거리 값 구하기
-    - BowCar.distance(type,thresehold) : 초음파 센서로 얻은 거리 값이 기준(thresehold)보다 큰지 작은지 타입에 따른 결과를 1과 0으로 알려줌
+    - BowCar.check_distance(threshold, condition) : 거리 값이 조건(condition: '>', '<')과 임계값(threshold)을 만족하는지 확인
 
 9. 반복문 관련
     - bfor("변수 초기화; 조건; 변화") : 들여쓰기를 기준으로 for문 작성

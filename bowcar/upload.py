@@ -1,7 +1,7 @@
 import serial.tools.list_ports
 import os
 import subprocess
-from typing import Optional, Type
+from typing import Optional, Type, Union
 from .base import BowCarBase
 
 # 이 클래스에서 사용할 아두이노 보드, 폴더, 파일 이름 정보
@@ -138,13 +138,55 @@ class UploadBowCar(BowCarBase):
         self.loop_code += f"{self._get_indent()}digitalWrite(RM_DIR_PIN, {right_dir});\n"
         self.loop_code += f"{self._get_indent()}analogWrite(RM_PWM_PIN, {right_speed});\n"
 
-    # --- 센서 값/조건을 C++ 코드로 반환하는 메소드 ---
+    # --- 센서 제어 메소드 (New API) ---
+    def is_button_pressed(self, button: str = 'u') -> str:
+        pin_map = {'u': "UB_PIN", 'd': "DB_PIN", 'l': "LB_PIN", 'r': "RB_PIN"}
+        pin_name = pin_map.get(button, 'UB_PIN')
+        self._add_pin_mode(pin_name, "INPUT_PULLUP") # 버튼은 보통 풀업
+        return f"(digitalRead({pin_name}) == LOW)"
+
+    def check_light(self, threshold: int = 500, condition: str = '>') -> str:
+        self._add_pin_mode("LS_PIN", "INPUT")
+        return f"(analogRead(LS_PIN) {condition} {threshold})"
+
+    def check_sound(self, threshold: int = 500, condition: str = '>') -> str:
+        self._add_pin_mode("SS_PIN", "INPUT")
+        return f"(analogRead(SS_PIN) {condition} {threshold})"
+
+    def check_line(self, dir: str = 'l', threshold: int = 500, condition: str = '>') -> str:
+        pin_name = 'IRL_PIN' if dir == 'l' else 'IRR_PIN'
+        self._add_pin_mode(pin_name, "INPUT")
+        return f"(analogRead({pin_name}) {condition} {threshold})"
+
+    def check_distance(self, threshold: int = 10, condition: str = '<') -> str:
+        self._ensure_distance_func()
+        return f"(Distance() {condition} {threshold})"
+
+    # --- 센서 값 직접 가져오기 메소드 ---
     def get_light(self) -> str:
         self._add_pin_mode("LS_PIN", "INPUT")
         return "analogRead(LS_PIN)"
 
+    def get_button(self, button: str = 'u') -> str:
+        # C++에서는 boolean 표현식이 곧 0/1 정수값으로 쓰일 수 있음.
+        # 명시적으로 형변환하거나 삼항연산자를 쓸 수도 있지만, 여기선 boolean 식 반환.
+        return self.is_button_pressed(button)
+
+    def get_sound(self) -> str:
+        self._add_pin_mode("SS_PIN", "INPUT")
+        return "analogRead(SS_PIN)"
+
+    def get_line(self, dir: str = 'l') -> str:
+        pin_name = 'IRL_PIN' if dir == 'l' else 'IRR_PIN'
+        self._add_pin_mode(pin_name, "INPUT")
+        return f"analogRead({pin_name})"
+
     def get_distance(self) -> str:
-        # 실제 초음파 거리 계산 함수를 아두이노 코드에 추가해야 함
+        self._ensure_distance_func()
+        return "Distance()"
+
+    def _ensure_distance_func(self):
+        """초음파 거리 계산 함수가 선언되었는지 확인하고 없으면 추가합니다."""
         self._add_pin_mode("TRIG_PIN","OUTPUT")
         self._add_pin_mode("ECHO_PIN","INPUT")
         
@@ -163,17 +205,6 @@ long Distance() {
 }
 '''
         self.declarations.add(Dist_Code)
-        return "Distance()"
-
-    def is_push(self, type: str = 'u') -> str:
-        pin_map = {'u': "UB_PIN", 'd': "DB_PIN", 'l': "LB_PIN", 'r': "RB_PIN"}
-        return f"(digitalRead({pin_map.get(type, 'UB_PIN')}) == LOW)" # 풀업 저항 기준
-    
-    def get_line(self,dir:str='l'):
-        _pin_name = 'IRL_PIN' if dir == 'l' else 'IRR_PIN'
-        self._add_pin_mode(_pin_name,'INPUT')
-        return f"analogRead({_pin_name})"
-
 
     # --- 제어문 빌더 ---
     def bfor(self, condition: str):
