@@ -29,16 +29,12 @@ pip install bowcar
     - BowCar.delay(time) : time(ms)만큼 지연
 
 1. led 관련
-    - BowCar.red_on() : 빨간 led 켜기
-    - BowCar.red_off() : 파란 led 끄기
-    - BowCar.blue_on() : 파란 led 켜기
-    - BowCar.blue_off() : 파란 led 끄기
-    - BowCar.all_light_on() : 모든 led 켜기
-    - BowCar.all_light_off() : 모든 led 끄기
+    - BowCar.red(status) : 빨간 led 제어 (status: 'on' or 'off')
+    - BowCar.blue(status) : 파란 led 제어 (status: 'on' or 'off')
+    - BowCar.all_light(status) : 모든 led 제어 (status: 'on' or 'off')
 
 2. 부저 관련
-    - BowCar.buzzer_on(scale, octave, note) : octave의 scale에 해당하는 음을 note음표 만큼 실행
-    - BowCar.buzzer_off() : 부저 끄기
+    - BowCar.buzzer(status, scale, octave, note) : 부저 제어 (status: 'on' or 'off'). 'on'일 경우 scale, octave, note 인자 사용.
     - BowCar.set_duration(time) : 부저음의 기본 길이를 time(ms)만큼 조정
 
 3. 모터 관련

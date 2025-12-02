@@ -1,2 +1,12 @@
 .pypric
 .pypirc
+
+# Test files
+test_gen.py
+test_live.py
+test_upload.py
+
+# Generated files
+arduino_bowcar/
+__pycache__/
+*.pyc

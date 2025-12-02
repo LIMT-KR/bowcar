@@ -119,33 +119,33 @@ class LiveBowCar(BowCarBase):
     
     # --- BowCarBase 메소드 구현 ---
 
-    def red_on(self):
-        self.send_command('lrn')
+    def red(self, status: str):
+        if status == 'on':
+            self.send_command('lrn')
+        elif status == 'off':
+            self.send_command('lrf')
 
-    def red_off(self):
-        self.send_command('lrf')
-
-    def blue_on(self):
-        self.send_command('lbn')
-
-    def blue_off(self):
-        self.send_command('lbf')
+    def blue(self, status: str):
+        if status == 'on':
+            self.send_command('lbn')
+        elif status == 'off':
+            self.send_command('lbf')
         
-    def all_light_on(self):
-        self.send_command('lan')
-
-    def all_light_off(self):
-        self.send_command('laf')
+    def all_light(self, status: str):
+        if status == 'on':
+            self.send_command('lan')
+        elif status == 'off':
+            self.send_command('laf')
         
-    def buzzer_on(self, scale: str = "C0", octave: int = 4, note: int = 4):
-        command = f'b{octave}{scale}{note}'
-        self.send_command(command)
-        # 'live' 모드에서는 파이썬이 직접 기다려야 음 길이를 보장할 수 있습니다.
-        if self.duration > 0 and note > 0:
-            time.sleep(self.duration / note / 1000.0)
-
-    def buzzer_off(self):
-        self.send_command('bnn')
+    def buzzer(self, status: str, scale: str = "C0", octave: int = 4, note: int = 4):
+        if status == 'on':
+            command = f'b{octave}{scale}{note}'
+            self.send_command(command)
+            # 'live' 모드에서는 파이썬이 직접 기다려야 음 길이를 보장할 수 있습니다.
+            if self.duration > 0 and note > 0:
+                time.sleep(self.duration / note / 1000.0)
+        elif status == 'off':
+            self.send_command('bnn')
         
     def set_duration(self, time: int = 2000):
         self.duration = time

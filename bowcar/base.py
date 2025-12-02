@@ -8,37 +8,21 @@ class BowCarBase:
     """
 
     # --- LED 제어 메소드 ---
-    def red_on(self):
-        """빨간색 LED를 켭니다."""
+    def red(self, status: str):
+        """빨간색 LED를 제어합니다. status: 'on' or 'off'"""
         raise NotImplementedError
 
-    def red_off(self):
-        """빨간색 LED를 끕니다."""
+    def blue(self, status: str):
+        """파란색 LED를 제어합니다. status: 'on' or 'off'"""
         raise NotImplementedError
 
-    def blue_on(self):
-        """파란색 LED를 켭니다."""
-        raise NotImplementedError
-
-    def blue_off(self):
-        """파란색 LED를 끕니다."""
-        raise NotImplementedError
-
-    def all_light_on(self):
-        """모든 LED를 켭니다."""
-        raise NotImplementedError
-
-    def all_light_off(self):
-        """모든 LED를 끕니다."""
+    def all_light(self, status: str):
+        """모든 LED를 제어합니다. status: 'on' or 'off'"""
         raise NotImplementedError
 
     # --- 부저 제어 메소드 ---
-    def buzzer_on(self, scale: str = "C0", octave: int = 4, note: int = 4):
-        """지정한 음계와 옥타브로 버저를 울립니다."""
-        raise NotImplementedError
-
-    def buzzer_off(self):
-        """버저를 끕니다."""
+    def buzzer(self, status: str, scale: str = "C0", octave: int = 4, note: int = 4):
+        """버저를 제어합니다. status: 'on' or 'off'"""
         raise NotImplementedError
 
     # --- 설정 메소드 ---

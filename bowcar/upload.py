@@ -81,49 +81,42 @@ class UploadBowCar(BowCarBase):
 
         self.declarations.add(command)
     
-    def red_on(self):
+    def red(self, status: str):
         self._add_pin_mode("RED_LED_PIN", "OUTPUT")
-        self.loop_code += f"{self._get_indent()}digitalWrite(RED_LED_PIN, HIGH);\n"
+        if status == 'on':
+            self.loop_code += f"{self._get_indent()}digitalWrite(RED_LED_PIN, HIGH);\n"
+        elif status == 'off':
+            self.loop_code += f"{self._get_indent()}digitalWrite(RED_LED_PIN, LOW);\n"
 
-    def red_off(self):
-        self._add_pin_mode("RED_LED_PIN", "OUTPUT")
-        self.loop_code += f"{self._get_indent()}digitalWrite(RED_LED_PIN, LOW);\n"
-
-    def blue_on(self):
+    def blue(self, status: str):
         self._add_pin_mode("BLUE_LED_PIN", "OUTPUT")
-        self.loop_code += f"{self._get_indent()}digitalWrite(BLUE_LED_PIN, HIGH);\n"
-
-    def blue_off(self):
-        self._add_pin_mode("BLUE_LED_PIN", "OUTPUT")
-        self.loop_code += f"{self._get_indent()}digitalWrite(BLUE_LED_PIN, LOW);\n"
+        if status == 'on':
+            self.loop_code += f"{self._get_indent()}digitalWrite(BLUE_LED_PIN, HIGH);\n"
+        elif status == 'off':
+            self.loop_code += f"{self._get_indent()}digitalWrite(BLUE_LED_PIN, LOW);\n"
         
-    def all_light_on(self):
-        self.red_on()
-        self.blue_on()
+    def all_light(self, status: str):
+        self.red(status)
+        self.blue(status)
 
-    def all_light_off(self):
-        self.red_off()
-        self.blue_off()
-
-    def buzzer_on(self, scale: str = "C0", octave: int = 4, note = 0): #type:ignore
-        if not 1 <= octave <= 6:
-            print(f"오류: 옥타브는 1에서 6 사이여야 합니다. (입력값: {octave})")
-            return
-        if scale not in SCALE_MAPPING:
-            print(f"오류: 음계는 C0~B0 식으로 설정해야 합니다. (입력값: {scale})")
-            return
-        
-        self._add_pin_mode("BUZZER_PIN", "OUTPUT")
-        frequency = tones[octave - 1][SCALE_MAPPING[scale]]
-        command = f"tone(BUZZER_PIN, {frequency}"
-        if note > 0:
-            command += f", (float)duration/{note}*0.95"
-        command += ");"
-
-        self.loop_code += f"{self._get_indent()}{command}\n"
-
-    def buzzer_off(self):
-        self.loop_code += f"{self._get_indent()}noTone(BUZZER_PIN);\n"
+    def buzzer(self, status: str, scale: str = "C0", octave: int = 4, note = 0): #type:ignore
+        if status == 'on':
+            if not 1 <= octave <= 6:
+                print(f"오류: 옥타브는 1에서 6 사이여야 합니다. (입력값: {octave})")
+                return
+            if scale not in SCALE_MAPPING:
+                print(f"오류: 음계는 C0~B0 식으로 설정해야 합니다. (입력값: {scale})")
+                return
+            
+            self._add_pin_mode("BUZZER_PIN", "OUTPUT")
+            frequency = tones[octave - 1][SCALE_MAPPING[scale]]
+            command = f"tone(BUZZER_PIN, {frequency}"
+            if note > 0:
+                command += f", (float)duration/{note}*0.95"
+            command += ");"
+            self.loop_code += f"{self._get_indent()}{command}\n"
+        elif status == 'off':
+             self.loop_code += f"{self._get_indent()}noTone(BUZZER_PIN);\n"
 
     def set_duration(self, time:int=2000):
         self.loop_code += f"duration = {time};\n"
